@@ -1,3 +1,31 @@
+local function find_git_root(dir)
+  -- Find the nearest .git directory upward from 'dir'
+  local git_dir = vim.fn.finddir('.git', dir .. ';')
+  if git_dir and git_dir ~= '' then
+    return vim.fn.fnamemodify(git_dir, ':h')
+  else
+    return dir
+  end
+end
+
+local function open_neogit()
+  local file_dir = vim.fn.expand '%:p:h'
+  local target_dir = find_git_root(file_dir)
+  if target_dir and target_dir ~= '' then
+    vim.cmd('cd ' .. target_dir)
+  end
+  vim.cmd 'Neogit'
+end
+
+local function open_local_history()
+  local file_dir = vim.fn.expand '%:p:h'
+  local target_dir = find_git_root(file_dir)
+  if target_dir and target_dir ~= '' then
+    vim.cmd('cd ' .. target_dir)
+  end
+  vim.cmd 'LocalHistoryToggle'
+end
+
 return {
   -- Gitsigns configuration
   {
@@ -28,15 +56,14 @@ return {
           end
         end, { desc = 'Jump to previous git [c]hange' })
 
-        -- Actions
-        -- visual mode
+        -- Actions: Visual mode
         map('v', '<leader>gs', function()
           gitsigns.stage_hunk { vim.fn.line '.', vim.fn.line 'v' }
         end, { desc = 'git [s]tage hunk' })
         map('v', '<leader>gr', function()
           gitsigns.reset_hunk { vim.fn.line '.', vim.fn.line 'v' }
         end, { desc = 'git [r]eset hunk' })
-        -- normal mode
+        -- Actions: Normal mode
         map('n', '<leader>gs', gitsigns.stage_hunk, { desc = 'git [s]tage hunk' })
         map('n', '<leader>gr', gitsigns.reset_hunk, { desc = 'git [r]eset hunk' })
         map('n', '<leader>gS', gitsigns.stage_buffer, { desc = 'git [S]tage buffer' })
@@ -62,24 +89,29 @@ return {
     config = function()
       require('neogit').setup {
         integrations = {
-          diffview = true, -- if you want to integrate with diffview.nvim
+          diffview = true, -- Integrate with diffview.nvim if desired
         },
-        -- Other Neogit configurations can go here.
       }
-
-      -- Keybinding for opening Neogit UI
-      vim.api.nvim_set_keymap('n', '<leader>gn', ':Neogit<CR>', { noremap = true, silent = true })
+      -- Key mapping: Open Neogit UI with directory change
+      vim.api.nvim_set_keymap('n', '<leader>gn', '', {
+        noremap = true,
+        silent = true,
+        callback = open_neogit,
+        desc = 'Open Neogit after cd to Git root',
+      })
     end,
   },
 
-  -- Local History configuration
+  -- vim-local-history configuration
   {
     'dinhhuy258/vim-local-history',
     config = function()
       -- Configure plugin variables
+      vim.g.local_history_enabled = 1 -- Enable the plugin
       vim.g.local_history_path = vim.fn.stdpath 'data' .. '/local-history'
-      vim.g.local_history_max_changes = 15 -- Keep only the last 15 snapshots per file
-      vim.g.local_history_new_change_delay = 300 -- Delay (in seconds) to prevent too many snapshots (5 minutes)
+      vim.g.local_history_max_changes = 12 -- Keep only the last 12 snapshots per file
+      vim.g.local_history_new_change_delay = 300 -- Delay (sec) to prevent too many snapshots
+      vim.g.local_history_autosave = 0 -- Disable autosave; only save on :write
 
       -- Auto-delete snapshots older than 24 hours on VimEnter
       vim.api.nvim_create_autocmd('VimEnter', {
@@ -107,8 +139,13 @@ return {
         end,
       })
 
-      -- Keybinding for opening Local History
-      vim.api.nvim_set_keymap('n', '<leader>gl', ':LocalHistory<CR>', { noremap = true, silent = true })
+      -- Key mapping: Open Local History UI with directory change
+      vim.api.nvim_set_keymap('n', '<leader>gl', '', {
+        noremap = true,
+        silent = true,
+        callback = open_local_history,
+        desc = 'Open Local History after cd to Git root',
+      })
     end,
   },
 }
