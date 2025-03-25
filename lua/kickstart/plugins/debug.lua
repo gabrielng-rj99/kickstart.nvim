@@ -23,12 +23,17 @@ return {
 
     -- Add your own debuggers here
     'leoluz/nvim-dap-go',
+    -- (Para Python, Java e outras linguagens, certifique-se de ter os adaptadores instalados via Mason ou manualmente)
+    'mfussenegger/nvim-dap-python',
+    -- Para Kotlin, recomenda-se usar a mesma configuração do Java.
+    -- Para Ruby, SQL e Bash, os adaptadores devem estar instalados no sistema.
   },
   keys = {
     -- Basic debugging keymaps, feel free to change to your liking!
     {
       '<F5>',
       function()
+        require('dapui').open()
         require('dap').continue()
       end,
       desc = 'Debug: Start/Continue',
@@ -76,34 +81,61 @@ return {
       end,
       desc = 'Debug: See last session result.',
     },
+
+    -- Para HTML: abrir visualização do arquivo (ajusta o comando conforme seu SO)
+    {
+      '<leader>hp',
+      ':!xdg-open %<CR>',
+      desc = 'HTML: Open file preview',
+      mode = 'n',
+    },
   },
   config = function()
     local dap = require 'dap'
     local dapui = require 'dapui'
 
+    -- dap.listeners.after.event_initialized['dapui_config'] = dapui.open
+    -- dap.listeners.before.event_terminated['dapui_config'] = dapui.close
+    -- dap.listeners.before.event_exited['dapui_config'] = dapui.close
+
+    require('dap').adapters.python = {
+      type = 'python',
+      request = 'launch',
+      name = 'Launch file',
+      -- Verifica se o ambiente virtual existe e, se não, usa "python3"
+      command = function()
+        local venv_path = os.getenv 'VIRTUAL_ENV'
+        if venv_path then
+          return venv_path .. '/bin/python'
+        else
+          return '/usr/bin/python3' -- Caminho para o python3 do sistema
+        end
+      end,
+      cwd = '${workspaceFolder}',
+      program = '${file}',
+      pythonPath = function()
+        return '/usr/bin/python3' -- Garantir que python3 seja usado
+      end,
+    }
+
     require('mason-nvim-dap').setup {
-      -- Makes a best effort to setup the various debuggers with
-      -- reasonable debug configurations
       automatic_installation = true,
-
-      -- You can provide additional configuration to the handlers,
-      -- see mason-nvim-dap README for more information
       handlers = {},
-
-      -- You'll need to check that you have the required things installed
-      -- online, please don't ask me how to install them :)
       ensure_installed = {
-        -- Update this to ensure that you have the debuggers for the langs you want
-        'delve',
+        -- Atualize conforme os adaptadores que deseja instalar
+        'delve', -- Go
+        'python', -- Python
+        'java', -- Java (e Kotlin)
+        'node2', -- JavaScript/TypeScript
+        'cppdbg', -- C, C++, Rust (usando o mesmo adapter)
+        'netcoredbg', -- C#
+        'php', -- PHP
+        'bashdb', -- Bash
       },
     }
 
     -- Dap UI setup
-    -- For more information, see |:help nvim-dap-ui|
     dapui.setup {
-      -- Set icons to characters that are more likely to work in every terminal.
-      --    Feel free to remove or use ones that you like more! :)
-      --    Don't feel like these are good choices.
       icons = { expanded = '▾', collapsed = '▸', current_frame = '*' },
       controls = {
         icons = {
@@ -120,28 +152,113 @@ return {
       },
     }
 
-    -- Change breakpoint icons
-    -- vim.api.nvim_set_hl(0, 'DapBreak', { fg = '#e51400' })
-    -- vim.api.nvim_set_hl(0, 'DapStop', { fg = '#ffcc00' })
-    -- local breakpoint_icons = vim.g.have_nerd_font
-    --     and { Breakpoint = '', BreakpointCondition = '', BreakpointRejected = '', LogPoint = '', Stopped = '' }
-    --   or { Breakpoint = '●', BreakpointCondition = '⊜', BreakpointRejected = '⊘', LogPoint = '◆', Stopped = '⭔' }
-    -- for type, icon in pairs(breakpoint_icons) do
-    --   local tp = 'Dap' .. type
-    --   local hl = (type == 'Stopped') and 'DapStop' or 'DapBreak'
-    --   vim.fn.sign_define(tp, { text = icon, texthl = hl, numhl = hl })
-    -- end
-
-    dap.listeners.after.event_initialized['dapui_config'] = dapui.open
-    dap.listeners.before.event_terminated['dapui_config'] = dapui.close
-    dap.listeners.before.event_exited['dapui_config'] = dapui.close
-
-    -- Install golang specific config
+    -- Go (já existente)
     require('dap-go').setup {
       delve = {
-        -- On Windows delve must be run attached or it crashes.
-        -- See https://github.com/leoluz/nvim-dap-go/blob/main/README.md#configuring
         detached = vim.fn.has 'win32' == 0,
+      },
+    }
+
+    -- JavaScript/TypeScript (usando node2)
+    dap.adapters.node2 = {
+      type = 'executable',
+      command = 'node',
+      args = { os.getenv 'HOME' .. '/.vscode-node-debug2/out/src/nodeDebug.js' },
+    }
+    dap.configurations.javascript = {
+      {
+        type = 'node2',
+        request = 'launch',
+        name = 'Launch JS file',
+        program = '${file}',
+        cwd = '${workspaceFolder}',
+      },
+    }
+    dap.configurations.typescript = dap.configurations.javascript
+
+    -- HTML já está mapeado na keymap (<leader>hp)
+
+    -- C, C++ e Rust (usando cppdbg)
+    dap.adapters.cppdbg = {
+      type = 'executable',
+      command = '/path/to/cpptools/extension/debugAdapters/bin/OpenDebugAD7', -- ajuste para seu caminho
+    }
+    local cpp_config = {
+      name = 'Launch file',
+      type = 'cppdbg',
+      request = 'launch',
+      program = '${file}',
+      cwd = '${workspaceFolder}',
+      stopOnEntry = false,
+    }
+    dap.configurations.c = { cpp_config }
+    dap.configurations.cpp = { cpp_config }
+    dap.configurations.rust = { cpp_config }
+
+    -- C# (usando coreclr)
+    dap.adapters.coreclr = {
+      type = 'executable',
+      command = '/path/to/netcoredbg', -- ajuste para seu caminho
+      args = { '--interpreter=vscode' },
+    }
+    dap.configurations.cs = {
+      {
+        name = 'Launch C#',
+        type = 'coreclr',
+        request = 'launch',
+        program = function()
+          return vim.fn.input('Path to dll: ', vim.fn.getcwd() .. '/bin/Debug/', 'file')
+        end,
+      },
+    }
+
+    -- PHP
+    dap.adapters.php = {
+      type = 'executable',
+      command = 'php-debug-adapter', -- ajuste se necessário
+    }
+    dap.configurations.php = {
+      {
+        name = 'Listen for Xdebug',
+        type = 'php',
+        request = 'launch',
+        port = 9003,
+        pathMappings = { ['/var/www/html'] = '${workspaceFolder}' },
+      },
+    }
+
+    -- Ruby
+    dap.adapters.ruby = {
+      type = 'executable',
+      command = 'readapt', -- ajuste conforme o adaptador instalado
+      args = {},
+    }
+    dap.configurations.ruby = {
+      {
+        name = 'Launch Ruby file',
+        type = 'ruby',
+        request = 'launch',
+        program = '${file}',
+        cwd = '${workspaceFolder}',
+      },
+    }
+
+    -- SQL: Como não é comum "debugar" SQL, mapeamos para abrir o arquivo
+    vim.api.nvim_set_keymap('n', '<leader>sq', ':!xdg-open %<CR>', { noremap = true, silent = true })
+
+    -- Bash (usando bashdb, se disponível)
+    dap.adapters.bashdb = {
+      type = 'executable',
+      command = 'bash-debug-adapter', -- ajuste conforme necessário
+      args = {},
+    }
+    dap.configurations.sh = {
+      {
+        name = 'Launch Bash script',
+        type = 'bashdb',
+        request = 'launch',
+        program = '${file}',
+        cwd = '${workspaceFolder}',
       },
     }
   end,
