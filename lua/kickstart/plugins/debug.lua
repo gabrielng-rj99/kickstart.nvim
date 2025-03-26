@@ -3,8 +3,7 @@
 -- Shows how to use the DAP plugin to debug your code.
 --
 -- Primarily focused on configuring the debugger for Go, but can
--- be extended to other languages as well. That's why it's called
--- kickstart.nvim and not kitchen-sink.nvim ;)
+-- be extended to other languages as well.
 
 return {
   -- NOTE: Yes, you can install new plugins here!
@@ -29,9 +28,18 @@ return {
     -- Para Ruby, SQL e Bash, os adaptadores devem estar instalados no sistema.
   },
   keys = {
-    -- Basic debugging keymaps, feel free to change to your liking!
+    -- Normal execution: Run current file with python3 using F5.
     {
       '<F5>',
+      function()
+        local filepath = vim.fn.expand '%:p'
+        vim.cmd('split | terminal python3 ' .. filepath)
+      end,
+      desc = 'Run: Execute current file normally',
+    },
+    -- Debugging: Start/Continue debugging with Ctrl+F5.
+    {
+      '<F29>',
       function()
         require('dapui').open()
         require('dap').continue()
@@ -81,7 +89,6 @@ return {
       end,
       desc = 'Debug: See last session result.',
     },
-
     -- Para HTML: abrir visualização do arquivo (ajusta o comando conforme seu SO)
     {
       '<leader>hp',
@@ -94,27 +101,28 @@ return {
     local dap = require 'dap'
     local dapui = require 'dapui'
 
+    -- Uncomment these lines if you want DAP UI to automatically open/close with the session
     -- dap.listeners.after.event_initialized['dapui_config'] = dapui.open
     -- dap.listeners.before.event_terminated['dapui_config'] = dapui.close
     -- dap.listeners.before.event_exited['dapui_config'] = dapui.close
 
+    -- Python adapter configuration: Adjusts command based on virtualenv presence
     require('dap').adapters.python = {
       type = 'python',
       request = 'launch',
       name = 'Launch file',
-      -- Verifica se o ambiente virtual existe e, se não, usa "python3"
       command = function()
         local venv_path = os.getenv 'VIRTUAL_ENV'
         if venv_path then
           return venv_path .. '/bin/python'
         else
-          return '/usr/bin/python3' -- Caminho para o python3 do sistema
+          return '/usr/bin/python3'
         end
       end,
       cwd = '${workspaceFolder}',
       program = '${file}',
       pythonPath = function()
-        return '/usr/bin/python3' -- Garantir que python3 seja usado
+        return '/usr/bin/python3'
       end,
     }
 
@@ -152,14 +160,14 @@ return {
       },
     }
 
-    -- Go (já existente)
+    -- Go adapter configuration
     require('dap-go').setup {
       delve = {
         detached = vim.fn.has 'win32' == 0,
       },
     }
 
-    -- JavaScript/TypeScript (usando node2)
+    -- JavaScript/TypeScript (using node2)
     dap.adapters.node2 = {
       type = 'executable',
       command = 'node',
@@ -176,12 +184,10 @@ return {
     }
     dap.configurations.typescript = dap.configurations.javascript
 
-    -- HTML já está mapeado na keymap (<leader>hp)
-
-    -- C, C++ e Rust (usando cppdbg)
+    -- C, C++ and Rust (using cppdbg)
     dap.adapters.cppdbg = {
       type = 'executable',
-      command = '/path/to/cpptools/extension/debugAdapters/bin/OpenDebugAD7', -- ajuste para seu caminho
+      command = '/path/to/cpptools/extension/debugAdapters/bin/OpenDebugAD7', -- adjust to your path
     }
     local cpp_config = {
       name = 'Launch file',
@@ -195,10 +201,10 @@ return {
     dap.configurations.cpp = { cpp_config }
     dap.configurations.rust = { cpp_config }
 
-    -- C# (usando coreclr)
+    -- C# (using coreclr)
     dap.adapters.coreclr = {
       type = 'executable',
-      command = '/path/to/netcoredbg', -- ajuste para seu caminho
+      command = '/path/to/netcoredbg', -- adjust to your path
       args = { '--interpreter=vscode' },
     }
     dap.configurations.cs = {
@@ -212,10 +218,10 @@ return {
       },
     }
 
-    -- PHP
+    -- PHP adapter and configuration
     dap.adapters.php = {
       type = 'executable',
-      command = 'php-debug-adapter', -- ajuste se necessário
+      command = 'php-debug-adapter', -- adjust if needed
     }
     dap.configurations.php = {
       {
@@ -227,10 +233,10 @@ return {
       },
     }
 
-    -- Ruby
+    -- Ruby adapter and configuration
     dap.adapters.ruby = {
       type = 'executable',
-      command = 'readapt', -- ajuste conforme o adaptador instalado
+      command = 'readapt', -- adjust based on installed adapter
       args = {},
     }
     dap.configurations.ruby = {
@@ -243,13 +249,13 @@ return {
       },
     }
 
-    -- SQL: Como não é comum "debugar" SQL, mapeamos para abrir o arquivo
+    -- SQL: Map key to open file (not typical debugging)
     vim.api.nvim_set_keymap('n', '<leader>sq', ':!xdg-open %<CR>', { noremap = true, silent = true })
 
-    -- Bash (usando bashdb, se disponível)
+    -- Bash (using bashdb)
     dap.adapters.bashdb = {
       type = 'executable',
-      command = 'bash-debug-adapter', -- ajuste conforme necessário
+      command = 'bash-debug-adapter', -- adjust if necessary
       args = {},
     }
     dap.configurations.sh = {

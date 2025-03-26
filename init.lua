@@ -181,6 +181,9 @@ vim.api.nvim_set_keymap('c', '<C-Up>', 'wildmenumode() ? "\\<C-p>" : "\\<C-Up>"'
 -- [[ Basic Keymaps ]]
 --  See `:help vim.keymap.set()`
 
+-- <leader>r in Visual mode: Replace selection with new word, then repeat `n` times
+vim.keymap.set('v', '<leader>r', '"hy:let @/=@h<CR>cgn', { noremap = true, silent = false })
+
 -- Clear highlights on search when pressing <Esc> in normal mode
 --  See `:help hlsearch`
 vim.keymap.set('n', '<Esc>', '<cmd>nohlsearch<CR>')
